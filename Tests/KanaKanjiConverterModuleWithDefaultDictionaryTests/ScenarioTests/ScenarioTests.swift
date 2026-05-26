@@ -26,18 +26,18 @@ final class ScenarioTests: XCTestCase {
     private func prepareSession(
         predictionMode: String = "automix",
         view: String? = nil
-    ) throws -> AncoSession {
+    ) async throws -> AncoSession {
         let romanSequenceToStablePrediction = ["a", "i", "u", "e", "o", "k", "a", "k", "i", "k", "u", "k", "e"]
         var session = self.makeSession()
-        _ = try session.execute(.setConfig(key: "inputStyle", value: "roman2kana"))
+        _ = try await session.execute(.setConfig(key: "inputStyle", value: "roman2kana"))
         if predictionMode != "automix" {
-            _ = try session.execute(.setConfig(key: "predictionMode", value: predictionMode))
+            _ = try await session.execute(.setConfig(key: "predictionMode", value: predictionMode))
         }
         for input in romanSequenceToStablePrediction {
-            _ = try session.execute(.input(input))
+            _ = try await session.execute(.input(input))
         }
         if let view {
-            _ = try session.execute(.setConfig(key: "view", value: view))
+            _ = try await session.execute(.setConfig(key: "view", value: view))
         }
         return session
     }
@@ -57,36 +57,36 @@ final class ScenarioTests: XCTestCase {
         )
     }
 
-    func testRoman2KanaPredictionStabilityKeepsKekoThroughUnresolvedSuffix() throws {
+    func testRoman2KanaPredictionStabilityKeepsKekoThroughUnresolvedSuffix() async throws {
         let stablePredictionTarget = "あいうえおかきくけこ"
-        var session = try self.prepareSession()
+        var session = try await self.prepareSession()
 
         XCTAssertEqual(session.composingText.convertTarget, "あいうえおかきくけ")
         XCTAssertEqual(session.lastCandidates.first?.text, stablePredictionTarget)
 
-        _ = try session.execute(.input("k"))
+        _ = try await session.execute(.input("k"))
 
         XCTAssertEqual(session.composingText.convertTarget, "あいうえおかきくけk")
         self.assertStablePredictionPresent(session, message: "expected stable prediction candidate to survive for unresolved suffix")
     }
 
-    func testPredictionViewKeepsStablePredictionResultsThroughUnresolvedSuffix() throws {
-        var session = try self.prepareSession(view: "prediction")
+    func testPredictionViewKeepsStablePredictionResultsThroughUnresolvedSuffix() async throws {
+        var session = try await self.prepareSession(view: "prediction")
 
         self.assertStablePredictionPresent(session, message: "expected prediction view to include stable prediction candidate")
 
-        _ = try session.execute(.input("k"))
+        _ = try await session.execute(.input("k"))
 
         XCTAssertEqual(session.composingText.convertTarget, "あいうえおかきくけk")
         self.assertStablePredictionPresent(session, message: "expected prediction view to keep stable prediction candidate through unresolved suffix")
     }
 
-    func testManualMixPredictionViewKeepsStablePredictionResultsThroughUnresolvedSuffix() throws {
-        var session = try self.prepareSession(predictionMode: "manualmix", view: "prediction")
+    func testManualMixPredictionViewKeepsStablePredictionResultsThroughUnresolvedSuffix() async throws {
+        var session = try await self.prepareSession(predictionMode: "manualmix", view: "prediction")
 
         self.assertStablePredictionPresent(session, message: "expected manualmix prediction view to include stable prediction candidate")
 
-        _ = try session.execute(.input("k"))
+        _ = try await session.execute(.input("k"))
 
         XCTAssertEqual(session.composingText.convertTarget, "あいうえおかきくけk")
         self.assertStablePredictionPresent(session, message: "expected manualmix prediction view to keep stable prediction candidate through unresolved suffix")

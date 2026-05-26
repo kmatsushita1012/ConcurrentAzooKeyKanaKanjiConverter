@@ -174,7 +174,7 @@ final class ConverterTests: XCTestCase {
         }
         // 1文字削除
         c.deleteBackwardFromCursorPosition(count: 1)
-        let results = converter.requestCandidates(c, options: requestOptions())
+        let results = await converter.requestCandidates(c, options: requestOptions())
         XCTAssertTrue(results.mainResults.contains { $0.text == "黄" })
     }
 
@@ -198,7 +198,7 @@ final class ConverterTests: XCTestCase {
         }
         // 1文字削除
         c.deleteBackwardFromCursorPosition(count: 1)
-        let results = converter.requestCandidates(c, options: requestOptions())
+        let results = await converter.requestCandidates(c, options: requestOptions())
         XCTAssertTrue(results.mainResults.contains { $0.text == "言っ" })
     }
 
@@ -316,7 +316,7 @@ final class ConverterTests: XCTestCase {
         }
     }
 
-    func testInputTableEdgeCases() throws {
+    func testInputTableEdgeCases() async throws {
         do {
             let converter = KanaKanjiConverter.withDefaultDictionary()
             InputStyleManager.registerInputStyle(table: InputTable(baseMapping: [
