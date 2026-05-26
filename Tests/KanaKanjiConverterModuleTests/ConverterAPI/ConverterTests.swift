@@ -39,7 +39,7 @@ final class ConverterTests: XCTestCase {
             let converter = KanaKanjiConverter(dictionaryURL: dictionaryURL())
             var c = ComposingText()
             c.insertAtCursorPosition("\\n", inputStyle: .direct)
-            let results = converter.requestCandidates(c, options: requestOptions())
+            let results = await converter.requestCandidates(c, options: requestOptions())
             XCTAssertFalse(results.mainResults.contains(where: {$0.text == "\n"}))
         }
     }
@@ -59,7 +59,7 @@ final class ConverterTests: XCTestCase {
         return Dictionary(uniqueKeysWithValues: string.enumerated().map { ($0.element, UInt8($0.offset)) })
     }
 
-    func testUserShortcutsExactMatchConversion() throws {
+    func testUserShortcutsExactMatchConversion() async throws {
         // 1) Export user_shortcuts using exportDictionary with system charID mapping
         let userDir = try tmpDir("user-shortcuts")
         defer {
@@ -102,14 +102,14 @@ final class ConverterTests: XCTestCase {
         )
 
         do {
-            let results = converter.requestCandidates(c, options: opts)
+            let results = await converter.requestCandidates(c, options: opts)
             XCTAssertTrue(results.mainResults.contains { $0.text == "よろしくお願いします" && $0.isLearningTarget == false })
         }
         do {
             // 「よろし」には反応させない
             c.insertAtCursorPosition("し", inputStyle: .direct)
 
-            let results = converter.requestCandidates(c, options: opts)
+            let results = await converter.requestCandidates(c, options: opts)
             XCTAssertFalse(results.mainResults.contains { $0.text == "よろしくお願いします" && $0.isLearningTarget == false })
         }
     }

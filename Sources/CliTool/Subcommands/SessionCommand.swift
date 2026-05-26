@@ -16,7 +16,7 @@ extension Subcommands {
 
         static let configuration = CommandConfiguration(commandName: "session", abstract: "Start session for incremental input.")
 
-        @MainActor mutating func run() async throws {
+        mutating func run() async throws {
             if self.options.zenzV2 {
                 print("\(bold: "We strongly recommend to use zenz-v3 models")")
             }
@@ -65,7 +65,7 @@ extension Subcommands {
                         self.printTypoCorrectionResult(result)
                         continue
                     }
-                    let result = try session.execute(command)
+                    let result = try await session.execute(command)
                     self.printResult(result)
                     if result.action == .quit {
                         return

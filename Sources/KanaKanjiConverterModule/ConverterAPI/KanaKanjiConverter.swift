@@ -70,7 +70,7 @@ public final class KanaKanjiConverter {
         self.sessions[self.activeSessionID] = state
     }
 
-    private func withScratchSession<T>(_ body: () -> T) -> T {
+    private func withScratchSession<T>(_ body: () async -> T) async -> T {
         let scratchID: SessionID = "scratch-\(UUID().uuidString)"
         self.sessions[scratchID] = self.currentSessionState
         let previousSessionID = self.activeSessionID
@@ -81,7 +81,7 @@ public final class KanaKanjiConverter {
             self.zenzaiPersonalization = savedPersonalization
             self.sessions[scratchID] = nil
         }
-        return body()
+        return await body()
     }
 
     /// リセットする関数
@@ -330,15 +330,15 @@ public final class KanaKanjiConverter {
     }
 
     /// 入力する言語が分かったらこの関数をなるべく早い段階で呼ぶことで、SpellCheckerの初期化が行われ、変換がスムーズになる
-    public func setKeyboardLanguage(_ language: KeyboardLanguage) {
+    public func setKeyboardLanguage(_ language: KeyboardLanguage) async {
         self.dicdataStoreState.updateKeyboardLanguage(language)
         if !checkerInitialized[language, default: false] {
             switch language {
             case .en_US:
-                _ = self.checker.completions(forPartialWordRange: NSRange(location: 0, length: 1), in: "a", language: "en-US")
+                _ = await self.checker.completions(forPartialWordRange: NSRange(location: 0, length: 1), in: "a", language: "en-US")
                 self.checkerInitialized[language] = true
             case .el_GR:
-                _ = self.checker.completions(forPartialWordRange: NSRange(location: 0, length: 1), in: "a", language: "el-GR")
+                _ = await self.checker.completions(forPartialWordRange: NSRange(location: 0, length: 1), in: "a", language: "el-GR")
                 self.checkerInitialized[language] = true
             case .none, .ja_JP:
                 checkerInitialized[language] = true
@@ -465,7 +465,7 @@ public final class KanaKanjiConverter {
     ///   - language: 言語コード。現在は`en-US`と`el(ギリシャ語)`のみ対応している。
     /// - Returns:
     ///   予測変換候補
-    private func getForeignPredictionCandidate(inputData: ComposingText, language: String, penalty: PValue = -5) -> [Candidate] {
+    private func getForeignPredictionCandidate(inputData: ComposingText, language: String, penalty: PValue = -5) async -> [Candidate] {
         switch language {
         case "en-US":
             var result: [Candidate] = []
@@ -476,7 +476,7 @@ public final class KanaKanjiConverter {
             if !ruby.onlyRomanAlphabet {
                 return result
             }
-            if let completions = checker.completions(forPartialWordRange: range, in: ruby, language: language) {
+            if let completions = await checker.completions(forPartialWordRange: range, in: ruby, language: language) {
                 if !completions.isEmpty {
                     let data = [DicdataElement(ruby: ruby, cid: CIDData.固有名詞.cid, mid: MIDData.一般.mid, value: penalty)]
                     let candidate: Candidate = Candidate(
@@ -510,7 +510,7 @@ public final class KanaKanjiConverter {
                 if case let .character(c) = $0.piece { c } else { nil }
             })
             let range = NSRange(location: 0, length: ruby.utf16.count)
-            if let completions = checker.completions(forPartialWordRange: range, in: ruby, language: language) {
+            if let completions = await checker.completions(forPartialWordRange: range, in: ruby, language: language) {
                 if !completions.isEmpty {
                     let data = [DicdataElement(ruby: ruby, cid: CIDData.固有名詞.cid, mid: MIDData.一般.mid, value: penalty)]
                     let candidate: Candidate = Candidate(
@@ -548,7 +548,7 @@ public final class KanaKanjiConverter {
     ///   - sums: 変換対象のデータ。
     /// - Returns:
     ///   予測変換候補
-    private func getPredictionCandidate(_ bestCandidateDataForPrediction: consuming CandidateData, composingText: ComposingText, options: ConvertRequestOptions) -> [Candidate] {
+    private func getPredictionCandidate(_ bestCandidateDataForPrediction: consuming CandidateData, composingText: ComposingText, options: ConvertRequestOptions) async -> [Candidate] {
         // 予測変換は次の方針で行う。
         // prepart: 前半文節 lastPart: 最終文節とする。
         // まず、lastPartがnilであるところから始める
@@ -647,8 +647,8 @@ public final class KanaKanjiConverter {
         fallbackOptions.requireJapanesePrediction = .disabled
         fallbackOptions.requireEnglishPrediction = .disabled
         // 別セッションで変換候補を生成
-        let predictedResult = self.withScratchSession {
-            self.requestCandidates(predictedComposingText, options: fallbackOptions)
+        let predictedResult = await self.withScratchSession {
+            await self.requestCandidates(predictedComposingText, options: fallbackOptions)
         }
         guard let firstCandidate = predictedResult.mainResults.first else {
             return []
@@ -661,12 +661,12 @@ public final class KanaKanjiConverter {
     ///   - inputData: 変換対象のInputData。
     /// - Returns:
     ///   付加的な変換候補
-    private func getTopLevelAdditionalCandidate(_ inputData: ComposingText, options: ConvertRequestOptions) -> [Candidate] {
+    private func getTopLevelAdditionalCandidate(_ inputData: ComposingText, options: ConvertRequestOptions) async -> [Candidate] {
         var candidates: [Candidate] = []
         if options.englishCandidateInRoman2KanaInput, inputData.input.allSatisfy({
             if case let .character(c) = $0.piece { c.isASCII } else { false }
         }) {
-            candidates.append(contentsOf: self.getForeignPredictionCandidate(inputData: inputData, language: "en-US", penalty: -10))
+            candidates.append(contentsOf: await self.getForeignPredictionCandidate(inputData: inputData, language: "en-US", penalty: -10))
         }
         return candidates
     }
@@ -775,7 +775,7 @@ public final class KanaKanjiConverter {
     ///   重複のない変換候補。
     /// - Note:
     ///   現在の実装は非常に複雑な方法で候補の順序を決定している。
-    private func processResult(inputData: ComposingText, result: (result: LatticeNode, lattice: Lattice), options: ConvertRequestOptions) -> ConversionResult {
+    private func processResult(inputData: ComposingText, result: (result: LatticeNode, lattice: Lattice), options: ConvertRequestOptions) async -> ConversionResult {
         self.updateCurrentSessionState {
             $0.previousInputData = inputData
             $0.lattice = result.lattice
@@ -856,7 +856,7 @@ public final class KanaKanjiConverter {
             var stablePredictionCandidates: [Candidate] = []
             if options.requireJapanesePrediction.isEnabled, let bestCandidateDataForPrediction {
                 let candidates = self.getUniqueCandidate(
-                    self.getPredictionCandidate(bestCandidateDataForPrediction, composingText: inputData, options: options)
+                    await self.getPredictionCandidate(bestCandidateDataForPrediction, composingText: inputData, options: options)
                 ).min(count: 3, sortedBy: {$0.value > $1.value})
                 stablePredictionCandidates = self.stablePredictionCandidates(
                     composingText: inputData,
@@ -880,9 +880,9 @@ public final class KanaKanjiConverter {
             var foreignCandidates: [Candidate] = []
             if options.requireEnglishPrediction.isEnabled {
                 var englishCandidates: [Candidate] = []
-                englishCandidates.append(contentsOf: self.getForeignPredictionCandidate(inputData: inputData, language: "en-US"))
+                englishCandidates.append(contentsOf: await self.getForeignPredictionCandidate(inputData: inputData, language: "en-US"))
                 if options.keyboardLanguage == .el_GR {
-                    englishCandidates.append(contentsOf: self.getForeignPredictionCandidate(inputData: inputData, language: "el"))
+                    englishCandidates.append(contentsOf: await self.getForeignPredictionCandidate(inputData: inputData, language: "el"))
                 }
                 englishPredictionResults = englishCandidates
                 if options.requireEnglishPrediction.shouldMix {
@@ -890,7 +890,7 @@ public final class KanaKanjiConverter {
                 }
             }
             // その他のトップレベル変換（先頭に表示されうる変換候補）
-            let topLevelAdditionalCandidates = self.getTopLevelAdditionalCandidate(inputData, options: options)
+            let topLevelAdditionalCandidates = await self.getTopLevelAdditionalCandidate(inputData, options: options)
             // best8、foreign_candidates、zeroHintPrediction_candidates、toplevel_additional_candidate、user_shortcuts を混ぜて上位5件を取得する
             let mixedCandidates = getUniqueCandidate(
                 bestFiveSentenceCandidates
@@ -1120,7 +1120,7 @@ public final class KanaKanjiConverter {
     ///   - inputData: 変換対象のInputData。
     ///   - options: リクエストにかかるパラメータ。
     /// - Returns: `ConversionResult`
-    public func requestCandidates(_ inputData: ComposingText, options: ConvertRequestOptions) -> ConversionResult {
+    public func requestCandidates(_ inputData: ComposingText, options: ConvertRequestOptions) async -> ConversionResult {
         debug("requestCandidates 入力は", inputData)
         // 変換対象が無の場合
         if inputData.convertTarget.isEmpty {
@@ -1136,7 +1136,7 @@ public final class KanaKanjiConverter {
             return ConversionResult(mainResults: [], predictionResults: [], englishPredictionResults: [], firstClauseResults: [])
         }
 
-        return self.processResult(inputData: inputData, result: result, options: options)
+        return await self.processResult(inputData: inputData, result: result, options: options)
     }
 
     private func isClassicTypoCorrectionEnabled(_ options: ConvertRequestOptions) -> Bool {

@@ -21,7 +21,7 @@ final class TemplateConversionTests: XCTestCase {
         do {
             var c = ComposingText()
             c.insertAtCursorPosition("きょう", inputStyle: .direct)
-            let results = converter.requestCandidates(c, options: requestOptions())
+            let results = await converter.requestCandidates(c, options: requestOptions())
             XCTAssertTrue(results.mainResults.contains(where: { $0.text == todayString}))
             XCTAssertFalse(results.mainResults.contains(where: { $0.text == template}))
             XCTAssertFalse(results.firstClauseResults.contains(where: { $0.text == template}))
@@ -31,7 +31,7 @@ final class TemplateConversionTests: XCTestCase {
         do {
             var c = ComposingText()
             c.insertAtCursorPosition("kyou", inputStyle: .roman2kana)
-            let results = converter.requestCandidates(c, options: requestOptions())
+            let results = await converter.requestCandidates(c, options: requestOptions())
             XCTAssertTrue(results.mainResults.contains(where: { $0.text == todayString}))
             XCTAssertFalse(results.mainResults.contains(where: { $0.text == template}))
             XCTAssertFalse(results.firstClauseResults.contains(where: { $0.text == template}))
