@@ -1,7 +1,7 @@
 import Foundation
 import SwiftUtils
 
-package final class DicdataStoreState {
+package final class DicdataStoreState: @unchecked Sendable {
     init(dictionaryURL: URL) {
         self.learningMemoryManager = LearningManager(dictionaryURL: dictionaryURL)
     }

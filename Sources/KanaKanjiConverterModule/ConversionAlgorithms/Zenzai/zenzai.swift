@@ -4,7 +4,7 @@ import Foundation
 import SwiftUtils
 
 extension Kana2Kanji {
-    struct ZenzaiCache {
+    struct ZenzaiCache: @unchecked Sendable {
         init(_ inputData: ComposingText, constraint: PrefixConstraint, satisfyingCandidate: Candidate?, lattice: Lattice? = nil) {
             self.inputData = inputData
             self.prefixConstraint = constraint

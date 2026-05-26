@@ -26,7 +26,7 @@ extension Subcommands {
 
             let requestOptions = try self.options.makeRequestOptions()
             let userDictionaryItems = try self.options.parseUserDictionaryItems()
-            var session = AncoSession(
+            var session = await AncoSession(
                 defaultDictionaryRequestOptions: requestOptions,
                 inputStyle: self.options.inputStyle,
                 displayTopN: self.options.displayTopN,

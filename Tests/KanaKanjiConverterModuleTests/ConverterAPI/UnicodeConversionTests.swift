@@ -22,49 +22,49 @@ final class UnicodeConversionTests: XCTestCase {
         do {
             let converter = KanaKanjiConverter.withoutDictionary()
             let input = makeDirectInput(direct: "U+3042")
-            let result = converter.unicodeCandidates(input)
+            let result = await converter.unicodeCandidates(input)
             XCTAssertEqual(result.count, 1)
             XCTAssertEqual(result[0].text, "あ")
         }
         do {
             let converter = KanaKanjiConverter.withoutDictionary()
             let input = makeDirectInput(direct: "U+1F607")
-            let result = converter.unicodeCandidates(input)
+            let result = await converter.unicodeCandidates(input)
             XCTAssertEqual(result.count, 1)
             XCTAssertEqual(result[0].text, "😇")
         }
         do {
             let converter = KanaKanjiConverter.withoutDictionary()
             let input = makeDirectInput(direct: "u+3042")
-            let result = converter.unicodeCandidates(input)
+            let result = await converter.unicodeCandidates(input)
             XCTAssertEqual(result.count, 1)
             XCTAssertEqual(result[0].text, "あ")
         }
         do {
             let converter = KanaKanjiConverter.withoutDictionary()
             let input = makeDirectInput(direct: "U3042")
-            let result = converter.unicodeCandidates(input)
+            let result = await converter.unicodeCandidates(input)
             XCTAssertEqual(result.count, 1)
             XCTAssertEqual(result[0].text, "あ")
         }
         do {
             let converter = KanaKanjiConverter.withoutDictionary()
             let input = makeDirectInput(direct: "u3042")
-            let result = converter.unicodeCandidates(input)
+            let result = await converter.unicodeCandidates(input)
             XCTAssertEqual(result.count, 1)
             XCTAssertEqual(result[0].text, "あ")
         }
         do {
             let converter = KanaKanjiConverter.withoutDictionary()
             let input = makeDirectInput(direct: "U+61")
-            let result = converter.unicodeCandidates(input)
+            let result = await converter.unicodeCandidates(input)
             XCTAssertEqual(result.count, 1)
             XCTAssertEqual(result[0].text, "a")
         }
         do {
             let converter = KanaKanjiConverter.withoutDictionary()
             let input = makeDirectInput(direct: "U+189")
-            let result = converter.unicodeCandidates(input)
+            let result = await converter.unicodeCandidates(input)
             XCTAssertEqual(result.count, 1)
             XCTAssertEqual(result[0].text, "Ɖ")
         }

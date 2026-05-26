@@ -12,7 +12,7 @@ import SwiftUtils
 extension KanaKanjiConverter {
     /// unicode文字列`"uxxxx, Uxxxx, u+xxxx, U+xxxx"`を対応する記号に変換する関数
     /// - parameters:
-    func unicodeCandidates(_ inputData: ComposingText) -> [Candidate] {
+    func unicodeCandidates(_ inputData: ComposingText) async -> [Candidate] {
         let value0: PValue = -10
         let string = inputData.convertTarget.toKatakana()
         for prefix in ["u", "U", "u+", "U+"] where string.hasPrefix(prefix) {

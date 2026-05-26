@@ -12,7 +12,7 @@ public import Foundation
 import SwiftUtils
 
 /// かな漢字変換の管理を受け持つクラス
-public final class KanaKanjiConverter {
+public actor KanaKanjiConverter {
     private let converter: Kana2Kanji
     private struct ConversionSessionState {
         var previousInputData: ComposingText?
@@ -31,7 +31,7 @@ public final class KanaKanjiConverter {
         self.converter = .init(dicdataStore: dicdataStore)
         self.dicdataStoreState = dicdataStore.prepareState()
     }
-    public convenience init(dictionaryURL: URL, preloadDictionary: Bool = false) {
+    public init(dictionaryURL: URL, preloadDictionary: Bool = false) {
         let dicdataStore = DicdataStore(dictionaryURL: dictionaryURL, preloadDictionary: preloadDictionary)
         self.init(dicdataStore: dicdataStore)
     }
@@ -411,10 +411,12 @@ public final class KanaKanjiConverter {
     ///   - string: 入力されたString
     /// - Returns:
     ///   `賢い変換候補
-    private func getSpecialCandidate(_ inputData: ComposingText, options: ConvertRequestOptions) -> [Candidate] {
-        options.specialCandidateProviders.flatMap { provider in
-            provider.provideCandidates(converter: self, inputData: inputData, options: options)
+    private func getSpecialCandidate(_ inputData: ComposingText, options: ConvertRequestOptions) async -> [Candidate] {
+        var candidates: [Candidate] = []
+        for provider in options.specialCandidateProviders {
+            candidates.append(contentsOf: await provider.provideCandidates(converter: self, inputData: inputData, options: options))
         }
+        return candidates
     }
 
     /// 変換候補の重複を除去する関数。
@@ -968,7 +970,7 @@ public final class KanaKanjiConverter {
                 seenCandidate.insert(c.text)
             }
             // 賢く変換するパターン（任意件数）
-            let wiseCandidates = self.getUniqueCandidate(self.getSpecialCandidate(inputData, options: options), seenCandidates: seenCandidate)
+            let wiseCandidates = self.getUniqueCandidate(await self.getSpecialCandidate(inputData, options: options), seenCandidates: seenCandidate)
             // 途中でwise_candidatesを挟む
             candidates.insert(contentsOf: consume wiseCandidates, at: min(5, candidates.endIndex))
             wordCandidates = consume candidates

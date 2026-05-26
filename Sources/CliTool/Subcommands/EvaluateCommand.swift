@@ -35,7 +35,7 @@ extension Subcommands {
             for item in inputItems {
                 let start = Date()
                 // セットアップ
-                converter.importDynamicUserDictionary(
+                await converter.importDynamicUserDictionary(
                     (item.user_dictionary ?? []).map {
                         DicdataElement(word: $0.word, ruby: $0.reading.toKatakana(), cid: CIDData.固有名詞.cid, mid: MIDData.一般.mid, value: -10)
                     }
@@ -66,7 +66,7 @@ extension Subcommands {
                 )
                 executionTime += Date().timeIntervalSince(start)
                 // Explictly reset state
-                converter.stopComposition()
+                await converter.stopComposition()
             }
             var result = EvaluateResult(n_best: self.options.configNBest, execution_time: executionTime, items: resultItems)
             if stable {

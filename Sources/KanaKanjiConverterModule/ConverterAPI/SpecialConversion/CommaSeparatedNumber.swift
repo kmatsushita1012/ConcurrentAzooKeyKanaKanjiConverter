@@ -2,7 +2,7 @@ import Foundation
 import SwiftUtils
 
 extension KanaKanjiConverter {
-    func commaSeparatedNumberCandidates(_ inputData: ComposingText) -> [Candidate] {
+    func commaSeparatedNumberCandidates(_ inputData: ComposingText) async -> [Candidate] {
         var text = inputData.convertTarget
         guard !text.isEmpty else { return [] }
 

@@ -1,53 +1,53 @@
 public protocol SpecialCandidateProvider: Sendable {
-    func provideCandidates(converter: KanaKanjiConverter, inputData: ComposingText, options: ConvertRequestOptions) -> [Candidate]
+    func provideCandidates(converter: KanaKanjiConverter, inputData: ComposingText, options: ConvertRequestOptions) async -> [Candidate]
 }
 
 public struct CalendarSpecialCandidateProvider: SpecialCandidateProvider {
     public init() {}
-    public func provideCandidates(converter: KanaKanjiConverter, inputData: ComposingText, options _: ConvertRequestOptions) -> [Candidate] {
-        converter.toWarekiCandidates(inputData) + converter.toSeirekiCandidates(inputData)
+    public func provideCandidates(converter: KanaKanjiConverter, inputData: ComposingText, options _: ConvertRequestOptions) async -> [Candidate] {
+        (await converter.toWarekiCandidates(inputData)) + (await converter.toSeirekiCandidates(inputData))
     }
 }
 
 public struct EmailAddressSpecialCandidateProvider: SpecialCandidateProvider {
     public init() {}
-    public func provideCandidates(converter: KanaKanjiConverter, inputData: ComposingText, options _: ConvertRequestOptions) -> [Candidate] {
-        converter.toEmailAddressCandidates(inputData)
+    public func provideCandidates(converter: KanaKanjiConverter, inputData: ComposingText, options _: ConvertRequestOptions) async -> [Candidate] {
+        await converter.toEmailAddressCandidates(inputData)
     }
 }
 
 public struct TypographySpecialCandidateProvider: SpecialCandidateProvider {
     public init() {}
-    public func provideCandidates(converter: KanaKanjiConverter, inputData: ComposingText, options _: ConvertRequestOptions) -> [Candidate] {
-        converter.typographicalCandidates(inputData)
+    public func provideCandidates(converter: KanaKanjiConverter, inputData: ComposingText, options _: ConvertRequestOptions) async -> [Candidate] {
+        await converter.typographicalCandidates(inputData)
     }
 }
 
 public struct UnicodeSpecialCandidateProvider: SpecialCandidateProvider {
     public init() {}
-    public func provideCandidates(converter: KanaKanjiConverter, inputData: ComposingText, options _: ConvertRequestOptions) -> [Candidate] {
-        converter.unicodeCandidates(inputData)
+    public func provideCandidates(converter: KanaKanjiConverter, inputData: ComposingText, options _: ConvertRequestOptions) async -> [Candidate] {
+        await converter.unicodeCandidates(inputData)
     }
 }
 
 public struct VersionSpecialCandidateProvider: SpecialCandidateProvider {
     public init() {}
-    public func provideCandidates(converter: KanaKanjiConverter, inputData: ComposingText, options: ConvertRequestOptions) -> [Candidate] {
-        converter.toVersionCandidate(inputData, options: options)
+    public func provideCandidates(converter: KanaKanjiConverter, inputData: ComposingText, options: ConvertRequestOptions) async -> [Candidate] {
+        await converter.toVersionCandidate(inputData, options: options)
     }
 }
 
 public struct TimeExpressionSpecialCandidateProvider: SpecialCandidateProvider {
     public init() {}
-    public func provideCandidates(converter: KanaKanjiConverter, inputData: ComposingText, options _: ConvertRequestOptions) -> [Candidate] {
-        converter.convertToTimeExpression(inputData)
+    public func provideCandidates(converter: KanaKanjiConverter, inputData: ComposingText, options _: ConvertRequestOptions) async -> [Candidate] {
+        await converter.convertToTimeExpression(inputData)
     }
 }
 
 public struct CommaSeparatedNumberSpecialCandidateProvider: SpecialCandidateProvider {
     public init() {}
-    public func provideCandidates(converter: KanaKanjiConverter, inputData: ComposingText, options _: ConvertRequestOptions) -> [Candidate] {
-        converter.commaSeparatedNumberCandidates(inputData)
+    public func provideCandidates(converter: KanaKanjiConverter, inputData: ComposingText, options _: ConvertRequestOptions) async -> [Candidate] {
+        await converter.commaSeparatedNumberCandidates(inputData)
     }
 }
 

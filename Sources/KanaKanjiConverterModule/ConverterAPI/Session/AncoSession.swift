@@ -106,7 +106,7 @@ package struct AncoSession {
         view: String = "main",
         debugPossibleNexts: Bool = false,
         userDictionaryItems: [InputUserDictionaryItem] = []
-    ) {
+    ) async {
         self.view = CandidateView(rawValue: view) ?? .main
         self.converter = converter
         self.requestOptionsState = requestOptions
@@ -131,7 +131,7 @@ package struct AncoSession {
                     value: -10
                 )
             }
-            self.converter.importDynamicUserDictionary(userDictionary)
+            await self.converter.importDynamicUserDictionary(userDictionary)
         }
     }
 
@@ -194,7 +194,7 @@ package struct AncoSession {
         case .save:
             self.composingText.stopComposition()
             await self.converter.stopComposition()
-            self.converter.commitUpdateLearningData()
+            await self.converter.commitUpdateLearningData()
             let message = self.requestOptionsState.learningType.needUpdateMemory
                 ? "saved"
                 : "anything should not be saved because the learning type is not for update memory"
@@ -303,8 +303,8 @@ package struct AncoSession {
                 throw SessionError.invalidCandidateIndex(index)
             }
             let candidate = self.lastCandidates[index]
-            self.converter.setCompletedData(candidate)
-            self.converter.updateLearningData(candidate)
+            await self.converter.setCompletedData(candidate)
+            await self.converter.updateLearningData(candidate)
             self.composingText.prefixComplete(composingCount: candidate.composingCount)
             if self.composingText.isEmpty {
                 self.composingText.stopComposition()

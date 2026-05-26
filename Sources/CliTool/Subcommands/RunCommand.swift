@@ -14,7 +14,7 @@ extension Subcommands {
         static let configuration = CommandConfiguration(commandName: "run", abstract: "Show help for this utility.")
 
         mutating func run() async throws {
-            var session = AncoSession(
+            var session = await AncoSession(
                 defaultDictionaryRequestOptions: try self.options.makeRequestOptions(),
                 inputStyle: self.options.inputStyle,
                 displayTopN: self.options.displayTopN,

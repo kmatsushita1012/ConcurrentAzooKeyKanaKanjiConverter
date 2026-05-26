@@ -20,12 +20,12 @@ final class AncoSessionTests: XCTestCase {
             specialCandidateProviders: KanaKanjiConverter.defaultSpecialCandidateProviders,
             metadata: .init(versionString: "anco test")
         )
-    ) -> AncoSession {
-        AncoSession(defaultDictionaryRequestOptions: requestOptions)
+    ) async -> AncoSession {
+        await AncoSession(defaultDictionaryRequestOptions: requestOptions)
     }
 
     func testExecuteDirectInputUpdatesComposition() async throws {
-        var session = self.makeSession()
+        var session = await self.makeSession()
 
         let result = try await session.execute(.input("あずーきー"))
 
@@ -38,7 +38,7 @@ final class AncoSessionTests: XCTestCase {
     }
 
     func testContextAndClearCommandsUpdateState() async throws {
-        var session = self.makeSession()
+        var session = await self.makeSession()
 
         _ = try await session.execute(.setContext("左"))
         let result = try await session.execute(.clearComposition)
@@ -50,7 +50,7 @@ final class AncoSessionTests: XCTestCase {
     }
 
     func testDumpCommandWritesHistory() async throws {
-        var session = self.makeSession()
+        var session = await self.makeSession()
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let historyURL = directory.appendingPathComponent("history.txt")
@@ -111,13 +111,13 @@ final class AncoSessionTests: XCTestCase {
             metadata: .init(versionString: "anco test")
         )
         try FileManager.default.createDirectory(at: requestOptions.memoryDirectoryURL, withIntermediateDirectories: true)
-        let session = self.makeSession(requestOptions: requestOptions)
+        let session = await self.makeSession(requestOptions: requestOptions)
 
         XCTAssertTrue(FileManager.default.fileExists(atPath: session.memoryDirectoryURL.path))
     }
 
     func testCfgUpdatesSessionState() async throws {
-        var session = self.makeSession()
+        var session = await self.makeSession()
 
         let topNResult = try await session.execute(.setConfig(key: "displayTopN", value: "3"))
         let styleResult = try await session.execute(.setConfig(key: "inputStyle", value: "roman2kana"))
@@ -157,7 +157,7 @@ final class AncoSessionTests: XCTestCase {
             ),
             metadata: .init(versionString: "anco test")
         )
-        var session = self.makeSession(requestOptions: requestOptions)
+        var session = await self.makeSession(requestOptions: requestOptions)
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let historyURL = directory.appendingPathComponent("history.txt")
@@ -182,7 +182,7 @@ final class AncoSessionTests: XCTestCase {
     }
 
     func testSwitchingToPredictionViewImmediatelyReturnsPredictionCandidates() async throws {
-        var session = self.makeSession()
+        var session = await self.makeSession()
         _ = try await session.execute(.setConfig(key: "inputStyle", value: "roman2kana"))
 
         for input in ["a", "i", "u", "e", "o", "k", "a", "k", "i", "k", "u", "k", "e"] {
@@ -199,7 +199,7 @@ final class AncoSessionTests: XCTestCase {
     }
 
     func testMoveCursorAllowsPartialCommitOfPrefixCandidate() async throws {
-        var session = self.makeSession()
+        var session = await self.makeSession()
 
         _ = try await session.execute(.input("あずーきーは"))
         let moveResult = try await session.execute(.moveCursor(-1))
@@ -220,7 +220,7 @@ final class AncoSessionTests: XCTestCase {
     }
 
     func testMoveCursorCanSplitLeftContextIntoRightContext() async throws {
-        var session = self.makeSession()
+        var session = await self.makeSession()
 
         _ = try await session.execute(.setContext("ご飯を食べるはし"))
         let result = try await session.execute(.moveCursor(-2))
@@ -232,7 +232,7 @@ final class AncoSessionTests: XCTestCase {
     }
 
     func testEditSegmentMovesCursorAndRefreshesPrefixCandidates() async throws {
-        var session = self.makeSession()
+        var session = await self.makeSession()
 
         _ = try await session.execute(.input("あずーきーは"))
         let result = try await session.execute(.editSegment(-1))

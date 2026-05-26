@@ -4,7 +4,7 @@ import Foundation
 import XCTest
 
 final class ScenarioTests: XCTestCase {
-    private func makeSession() -> AncoSession {
+    private func makeSession() async -> AncoSession {
         let requestOptions = ConvertRequestOptions(
             N_best: 10,
             requireJapanesePrediction: .autoMix,
@@ -20,7 +20,7 @@ final class ScenarioTests: XCTestCase {
             specialCandidateProviders: KanaKanjiConverter.defaultSpecialCandidateProviders,
             metadata: .init(versionString: "scenario test")
         )
-        return AncoSession(defaultDictionaryRequestOptions: requestOptions)
+        return await AncoSession(defaultDictionaryRequestOptions: requestOptions)
     }
 
     private func prepareSession(
@@ -28,7 +28,7 @@ final class ScenarioTests: XCTestCase {
         view: String? = nil
     ) async throws -> AncoSession {
         let romanSequenceToStablePrediction = ["a", "i", "u", "e", "o", "k", "a", "k", "i", "k", "u", "k", "e"]
-        var session = self.makeSession()
+        var session = await self.makeSession()
         _ = try await session.execute(.setConfig(key: "inputStyle", value: "roman2kana"))
         if predictionMode != "automix" {
             _ = try await session.execute(.setConfig(key: "predictionMode", value: predictionMode))

@@ -27,7 +27,7 @@ extension KanaKanjiConverter {
     ]
     /// 入力が@で終わる場合に、メアドのような候補を追加する関数
     /// - parameters:
-    func toEmailAddressCandidates(_ inputData: ComposingText) -> [Candidate] {
+    func toEmailAddressCandidates(_ inputData: ComposingText) async -> [Candidate] {
         guard let atIndex = inputData.convertTarget.lastIndex(of: "@") else {
             return []
         }

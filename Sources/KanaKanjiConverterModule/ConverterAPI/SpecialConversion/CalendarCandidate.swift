@@ -15,7 +15,7 @@ extension KanaKanjiConverter {
     ///   - inputData: 入力情報。
     /// - note:
     ///    現在英字のみ。ギリシャ文字や数字に対応する必要あり。
-    func toSeirekiCandidates(_ inputData: ComposingText) -> [Candidate] {
+    func toSeirekiCandidates(_ inputData: ComposingText) async -> [Candidate] {
         let string = inputData.convertTarget.toKatakana()
         let result = self.toSeireki(string)
         return result.map {[Candidate(
@@ -110,7 +110,7 @@ extension KanaKanjiConverter {
     /// 西暦で書かれた入力を和暦に変換する関数
     /// - parameters:
     ///   - string: 入力
-    func toWarekiCandidates(_ inputData: ComposingText) -> [Candidate] {
+    func toWarekiCandidates(_ inputData: ComposingText) async -> [Candidate] {
         let string = inputData.convertTarget.toKatakana()
 
         let makeResult0: (String) -> Candidate = {
