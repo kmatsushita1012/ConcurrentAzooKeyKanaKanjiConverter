@@ -85,8 +85,8 @@ public final class KanaKanjiConverter {
     }
 
     /// リセットする関数
-    public func stopComposition() {
-        self.zenz?.endSession()
+    public func stopComposition() async {
+        await self.zenz?.endSession()
         self.zenzaiPersonalization = nil
         self.sessions = [Self.defaultSessionID: .init()]
         self.activeSessionID = Self.defaultSessionID
@@ -197,8 +197,8 @@ public final class KanaKanjiConverter {
         return uniqueStableCandidates + additionalCandidates
     }
 
-    package func getModel(modelURL: URL) -> Zenz? {
-        if let model = self.zenz, model.resourceURL == modelURL {
+    package func getModel(modelURL: URL) async -> Zenz? {
+        if let model = self.zenz, await model.resourceURL == modelURL {
             self.zenzStatus = "load \(modelURL.absoluteString)"
             return model
         } else {
@@ -227,7 +227,7 @@ public final class KanaKanjiConverter {
         options: ConvertRequestOptions,
         inputStyle: InputStyle = .direct,
         debugPossibleNexts: Bool = false
-    ) -> (predictedText: String, suffixCount: Int) {
+    ) async -> (predictedText: String, suffixCount: Int) {
         guard options.zenzaiMode.enabled else {
             self.invalidatePredictiveInputCache()
             print("zenz mode is disabled")
@@ -251,7 +251,7 @@ public final class KanaKanjiConverter {
         ) {
             return cachedPrediction
         }
-        guard let zenz = self.getModel(modelURL: options.zenzaiMode.weightURL) else {
+        guard let zenz = await self.getModel(modelURL: options.zenzaiMode.weightURL) else {
             self.invalidatePredictiveInputCache()
             print("zenz-v3 model unavailable")
             return ("", 0)
@@ -260,7 +260,7 @@ public final class KanaKanjiConverter {
         if debugPossibleNexts {
             print("possibleNexts:", source.possibleNexts)
         }
-        let predictedText = zenz.predictNextInputText(
+        let predictedText = await zenz.predictNextInputText(
             leftSideContext: leftSideContext,
             composingText: source.baseConvertTarget,
             count: count,
@@ -292,7 +292,7 @@ public final class KanaKanjiConverter {
         options: ConvertRequestOptions,
         inputStyle: InputStyle,
         config: ExperimentalTypoCorrectionConfig = .init()
-    ) -> [ZenzaiTypoCandidate] {
+    ) async -> [ZenzaiTypoCandidate] {
         debug("[Warning] KanaKanjiConverter.experimentalRequestTypoCorrection is experimental and may change without notice.")
         switch config.languageModel {
         case .zenz:
@@ -300,11 +300,11 @@ public final class KanaKanjiConverter {
                 debug("zenz mode is disabled")
                 return []
             }
-            guard let zenz = self.getModel(modelURL: options.zenzaiMode.weightURL) else {
+            guard let zenz = await self.getModel(modelURL: options.zenzaiMode.weightURL) else {
                 debug("zenz model unavailable")
                 return []
             }
-            return zenz.generateTypoCandidates(
+            return await zenz.generateTypoCandidates(
                 leftSideContext: leftSideContext,
                 composingText: composingText,
                 inputStyle: inputStyle,
@@ -623,7 +623,7 @@ public final class KanaKanjiConverter {
         }
 
         let inputStyle = composingText.input.last?.inputStyle ?? .direct
-        let (predictedText, suffixCount) = self.predictNextInputText(
+        let (predictedText, suffixCount) = await self.predictNextInputText(
             leftSideContext: leftSideContext,
             composingText: composingText,
             count: 10,
@@ -1019,20 +1019,21 @@ public final class KanaKanjiConverter {
     ///   - N_best: 計算途中で保存する候補数。実際に得られる候補数とは異なる。
     /// - Returns:
     ///   結果のラティスノードと、計算済みノードの全体
-    private func convertToLattice(_ inputData: ComposingText, N_best: Int, zenzaiMode: ConvertRequestOptions.ZenzaiMode, needTypoCorrection: Bool) -> (result: LatticeNode, lattice: Lattice)? {
+    private func convertToLattice(_ inputData: ComposingText, N_best: Int, zenzaiMode: ConvertRequestOptions.ZenzaiMode, needTypoCorrection: Bool) async -> (result: LatticeNode, lattice: Lattice)? {
         if inputData.convertTarget.isEmpty {
             return nil
         }
 
         // FIXME: enable cache based zenzai
-        if zenzaiMode.enabled, let model = self.getModel(modelURL: zenzaiMode.weightURL) {
-            let (result, nodes, cache) = self.converter.all_zenzai(
+        if zenzaiMode.enabled, let model = await self.getModel(modelURL: zenzaiMode.weightURL) {
+            let personalizationMode = self.getZenzaiPersonalization(mode: zenzaiMode.personalizationMode)
+            let (result, nodes, cache) = await self.converter.all_zenzai(
                 inputData,
                 zenz: model,
                 zenzaiCache: self.currentSessionState.zenzaiCache,
                 inferenceLimit: zenzaiMode.inferenceLimit,
                 requestRichCandidates: zenzaiMode.requestRichCandidates,
-                personalizationMode: self.getZenzaiPersonalization(mode: zenzaiMode.personalizationMode),
+                personalizationMode: personalizationMode,
                 versionDependentConfig: zenzaiMode.versionDependentMode,
                 dicdataStoreState: self.dicdataStoreState
             )
@@ -1132,7 +1133,7 @@ public final class KanaKanjiConverter {
         self.dicdataStoreState.updateIfRequired(options: options)
         let needTypoCorrection = self.isClassicTypoCorrectionEnabled(options)
 
-        guard let result = self.convertToLattice(inputData, N_best: options.N_best, zenzaiMode: options.zenzaiMode, needTypoCorrection: needTypoCorrection) else {
+        guard let result = await self.convertToLattice(inputData, N_best: options.N_best, zenzaiMode: options.zenzaiMode, needTypoCorrection: needTypoCorrection) else {
             return ConversionResult(mainResults: [], predictionResults: [], englishPredictionResults: [], firstClauseResults: [])
         }
 

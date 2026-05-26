@@ -83,10 +83,10 @@ extension Kana2Kanji {
         zenzaiCache: ZenzaiCache?,
         inferenceLimit: Int,
         requestRichCandidates: Bool,
-        personalizationMode: (mode: ConvertRequestOptions.ZenzaiMode.PersonalizationMode, base: EfficientNGram, personal: EfficientNGram)?,
+        personalizationMode: sending (mode: ConvertRequestOptions.ZenzaiMode.PersonalizationMode, base: EfficientNGram, personal: EfficientNGram)?,
         versionDependentConfig: ConvertRequestOptions.ZenzaiVersionDependentMode,
         dicdataStoreState: DicdataStoreState
-    ) -> (result: LatticeNode, lattice: Lattice, cache: ZenzaiCache) {
+    ) async -> (result: LatticeNode, lattice: Lattice, cache: ZenzaiCache) {
         let latticeInputData = Self.zenzaiLatticeInputData(for: inputData)
         let zenzInputCursorPosition = Self.zenzaiInputCursorPosition(for: inputData)
         var constraint = zenzaiCache?.getNewConstraint(for: latticeInputData) ?? PrefixConstraint([])
@@ -150,7 +150,7 @@ extension Kana2Kanji {
                     // When inference occurs more than maximum times, then just return result at this point
                     return (eosNode, lattice, ZenzaiCache(latticeInputData, constraint: constraint, satisfyingCandidate: candidate, lattice: lattice))
                 }
-                let reviewResult = zenz.candidateEvaluate(
+                let reviewResult = await zenz.candidateEvaluate(
                     convertTarget: inputData.convertTarget,
                     convertTargetCursorPosition: zenzInputCursorPosition,
                     candidates: [candidate],

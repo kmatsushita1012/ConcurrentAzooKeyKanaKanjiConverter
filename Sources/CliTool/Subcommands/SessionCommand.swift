@@ -59,7 +59,7 @@ extension Subcommands {
                 do {
                     if case let .typoCorrection(command) = command {
                         session.recordHistory(.typoCorrection(command))
-                        let result = session.experimentalRequestTypoCorrection(
+                        let result = await session.experimentalRequestTypoCorrection(
                             config: self.options.makeExperimentalTypoCorrectionConfig(from: command)
                         )
                         self.printTypoCorrectionResult(result)

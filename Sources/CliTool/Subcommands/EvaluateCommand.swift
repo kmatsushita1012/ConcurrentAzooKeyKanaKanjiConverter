@@ -49,7 +49,7 @@ extension Subcommands {
                     ignoreLeftContext: self.configZenzaiIgnoreLeftContext,
                     ignoreRightContext: self.configZenzaiIgnoreRightContext
                 )
-                let result = converter.requestCandidates(composingText, options: requestOptions)
+                let result = await converter.requestCandidates(composingText, options: requestOptions)
                 let mainResults = result.mainResults.filter {
                     $0.data.reduce(into: "", {$0.append(contentsOf: $1.ruby)}) == item.query.toKatakana()
                 }

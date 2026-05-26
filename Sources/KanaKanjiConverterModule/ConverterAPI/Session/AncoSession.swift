@@ -179,7 +179,7 @@ package struct AncoSession {
             return await self.updateCandidates(submittedCommand: submittedCommand, executedCommand: submittedCommand)
 
         case .clearComposition:
-            self.reset()
+            await self.reset()
             return self.makeResult(
                 action: .stateCleared,
                 submittedCommand: submittedCommand,
@@ -193,7 +193,7 @@ package struct AncoSession {
 
         case .save:
             self.composingText.stopComposition()
-            self.converter.stopComposition()
+            await self.converter.stopComposition()
             self.converter.commitUpdateLearningData()
             let message = self.requestOptionsState.learningType.needUpdateMemory
                 ? "saved"
@@ -204,7 +204,7 @@ package struct AncoSession {
             let predictCount = max(1, min(requestedCount, 50))
             let predictMinLength = max(1, min(minLength, predictCount))
             let ipStart = Date()
-            let (predictedText, suffixCount) = self.converter.predictNextInputText(
+            let (predictedText, suffixCount) = await self.converter.predictNextInputText(
                 leftSideContext: self.leftSideContext,
                 composingText: self.composingText,
                 count: predictCount,
@@ -308,7 +308,7 @@ package struct AncoSession {
             self.composingText.prefixComplete(composingCount: candidate.composingCount)
             if self.composingText.isEmpty {
                 self.composingText.stopComposition()
-                self.converter.stopComposition()
+                await self.converter.stopComposition()
             } else {
                 _ = self.composingText.moveCursorFromCursorPosition(
                     count: self.composingText.convertTarget.count - self.composingText.convertTargetCursorPosition
@@ -332,9 +332,9 @@ package struct AncoSession {
         }
     }
 
-    package mutating func reset() {
+    package mutating func reset() async {
         self.composingText.stopComposition()
-        self.converter.stopComposition()
+        await self.converter.stopComposition()
         self.lastCandidates = []
         self.lastMainCandidates = []
         self.lastPredictionCandidates = []
@@ -346,9 +346,9 @@ package struct AncoSession {
 
     package func experimentalRequestTypoCorrection(
         config: ExperimentalTypoCorrectionConfig = .init()
-    ) -> TypoCorrectionResult {
+    ) async -> TypoCorrectionResult {
         let start = Date()
-        let candidates = self.converter.experimentalRequestTypoCorrection(
+        let candidates = await self.converter.experimentalRequestTypoCorrection(
             leftSideContext: self.leftSideContext,
             composingText: self.composingText,
             options: self.requestOptions(leftSideContext: self.leftSideContext),

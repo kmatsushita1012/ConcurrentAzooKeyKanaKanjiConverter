@@ -2,7 +2,7 @@ import EfficientNGram
 package import Foundation
 import SwiftUtils
 
-package final class Zenz {
+package actor Zenz {
     package var resourceURL: URL
     private var zenzContext: ZenzContext?
     init(resourceURL: URL) throws {
@@ -35,7 +35,7 @@ package final class Zenz {
         candidates: [Candidate],
         requestRichCandidates: Bool,
         prefixConstraint: Kana2Kanji.PrefixConstraint,
-        personalizationMode: (mode: ConvertRequestOptions.ZenzaiMode.PersonalizationMode, base: EfficientNGram, personal: EfficientNGram)?,
+        personalizationMode: sending (mode: ConvertRequestOptions.ZenzaiMode.PersonalizationMode, base: EfficientNGram, personal: EfficientNGram)?,
         versionDependentConfig: ConvertRequestOptions.ZenzaiVersionDependentMode
     ) -> CandidateEvaluationResult {
         guard let zenzContext else {
