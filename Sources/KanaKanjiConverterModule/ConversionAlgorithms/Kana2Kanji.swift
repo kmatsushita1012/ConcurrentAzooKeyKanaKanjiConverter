@@ -14,7 +14,7 @@ public typealias PValue = Float16
 public typealias PValue = Float32
 #endif
 
-struct Kana2Kanji {
+struct Kana2Kanji: @unchecked Sendable {
     var dicdataStore: DicdataStore
 
     /// CandidateDataの状態からCandidateに変更する関数

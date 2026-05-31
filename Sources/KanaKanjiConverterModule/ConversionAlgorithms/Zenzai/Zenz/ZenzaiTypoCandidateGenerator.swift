@@ -101,7 +101,7 @@ public struct ZenzaiTypoCandidate: Sendable, Equatable, Hashable {
 }
 
 /// セッション跨ぎで typo 探索のLM補助キャッシュを保持するコンテナ。
-final class ZenzaiTypoGenerationCache {
+final class ZenzaiTypoGenerationCache: @unchecked Sendable {
     fileprivate var prompt: String = ""
     fileprivate var promptTokenIDs: [Int] = []
     fileprivate var vocabSize: Int = 0
@@ -356,7 +356,7 @@ enum ZenzaiTypoCandidateGenerator {
     /// 次トークン分布と文字列->token変換をキャッシュするLMスコアラー。
     private struct LMScorer<Context: ZenzCompatibleInputLanguageModelContext> {
         private let context: Context
-        private let cache: ZenzaiTypoGenerationCache
+        private var cache: ZenzaiTypoGenerationCache
 
         init(
             context: Context,

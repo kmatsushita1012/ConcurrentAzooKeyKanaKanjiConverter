@@ -8,8 +8,8 @@ extension AncoSession {
         displayTopN: Int = 1,
         debugPossibleNexts: Bool = false,
         userDictionaryItems: [InputUserDictionaryItem] = []
-    ) {
-        self.init(
+    ) async {
+        await self.init(
             converter: .withDefaultDictionary(preloadDictionary: preloadDictionary),
             requestOptions: requestOptions,
             inputStyle: inputStyle,

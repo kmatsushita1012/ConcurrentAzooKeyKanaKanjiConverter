@@ -16,7 +16,7 @@ extension Subcommands {
 
         static let configuration = CommandConfiguration(commandName: "session", abstract: "Start session for incremental input.")
 
-        @MainActor mutating func run() async throws {
+        mutating func run() async throws {
             if self.options.zenzV2 {
                 print("\(bold: "We strongly recommend to use zenz-v3 models")")
             }
@@ -26,7 +26,7 @@ extension Subcommands {
 
             let requestOptions = try self.options.makeRequestOptions()
             let userDictionaryItems = try self.options.parseUserDictionaryItems()
-            var session = AncoSession(
+            var session = await AncoSession(
                 defaultDictionaryRequestOptions: requestOptions,
                 inputStyle: self.options.inputStyle,
                 displayTopN: self.options.displayTopN,
@@ -59,13 +59,13 @@ extension Subcommands {
                 do {
                     if case let .typoCorrection(command) = command {
                         session.recordHistory(.typoCorrection(command))
-                        let result = session.experimentalRequestTypoCorrection(
+                        let result = await session.experimentalRequestTypoCorrection(
                             config: self.options.makeExperimentalTypoCorrectionConfig(from: command)
                         )
                         self.printTypoCorrectionResult(result)
                         continue
                     }
-                    let result = try session.execute(command)
+                    let result = try await session.execute(command)
                     self.printResult(result)
                     if result.action == .quit {
                         return

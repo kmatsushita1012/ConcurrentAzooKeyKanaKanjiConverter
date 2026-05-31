@@ -1,7 +1,7 @@
 import Foundation
 
 extension KanaKanjiConverter {
-    func convertToTimeExpression(_ inputData: ComposingText) -> [Candidate] {
+    func convertToTimeExpression(_ inputData: ComposingText) async -> [Candidate] {
         var candidates: [Candidate] = []
         let numberString = inputData.convertTarget
 

@@ -13,14 +13,14 @@ extension Subcommands {
 
         static let configuration = CommandConfiguration(commandName: "run", abstract: "Show help for this utility.")
 
-        @MainActor mutating func run() async throws {
-            var session = AncoSession(
+        mutating func run() async throws {
+            var session = await AncoSession(
                 defaultDictionaryRequestOptions: try self.options.makeRequestOptions(),
                 inputStyle: self.options.inputStyle,
                 displayTopN: self.options.displayTopN,
                 userDictionaryItems: try self.options.parseUserDictionaryItems()
             )
-            let result = try session.execute(.input(self.input))
+            let result = try await session.execute(.input(self.input))
 
             for candidate in result.displayedCandidates {
                 if self.options.reportScore {

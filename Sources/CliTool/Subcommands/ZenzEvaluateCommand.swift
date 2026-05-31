@@ -30,7 +30,7 @@ extension Subcommands {
                 ""
             }
             leftContext = "\u{EE00}\(query)\(leftContext)\u{EE01}"
-            return zenz.pureGreedyDecoding(pureInput: leftContext, maxCount: maxCount)
+            return await zenz.pureGreedyDecoding(pureInput: leftContext, maxCount: maxCount)
         }
 
         mutating func run() async throws {
@@ -39,7 +39,7 @@ extension Subcommands {
             var executionTime: Double = 0
             var resultItems: [EvaluateItem] = []
 
-            guard let zenz = converter.getModel(modelURL: URL(string: self.zenzWeightPath)!) else {
+            guard let zenz = await converter.getModel(modelURL: URL(string: self.zenzWeightPath)!) else {
                 print("Failed to initialize zenz model")
                 return
             }
@@ -64,7 +64,7 @@ extension Subcommands {
                     )
                 )
                 executionTime += Date().timeIntervalSince(start)
-                zenz.endSession()
+                await zenz.endSession()
             }
             var result = EvaluateResult(n_best: 1, execution_time: executionTime, items: resultItems)
             if stable {

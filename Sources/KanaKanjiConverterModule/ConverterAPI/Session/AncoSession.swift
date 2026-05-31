@@ -106,7 +106,7 @@ package struct AncoSession {
         view: String = "main",
         debugPossibleNexts: Bool = false,
         userDictionaryItems: [InputUserDictionaryItem] = []
-    ) {
+    ) async {
         self.view = CandidateView(rawValue: view) ?? .main
         self.converter = converter
         self.requestOptionsState = requestOptions
@@ -131,7 +131,7 @@ package struct AncoSession {
                     value: -10
                 )
             }
-            self.converter.importDynamicUserDictionary(userDictionary)
+            await self.converter.importDynamicUserDictionary(userDictionary)
         }
     }
 
@@ -156,7 +156,7 @@ package struct AncoSession {
         self.histories.append(command)
     }
 
-    package mutating func execute(_ submittedCommand: AncoSessionRequest) throws -> ExecutionResult {
+    package mutating func execute(_ submittedCommand: AncoSessionRequest) async throws -> ExecutionResult {
         self.histories.append(submittedCommand)
 
         switch submittedCommand {
@@ -176,10 +176,10 @@ package struct AncoSession {
                 _ = self.leftSideContext.popLast()
                 return self.makeResult(action: .noAction, submittedCommand: submittedCommand, executedCommand: submittedCommand)
             }
-            return self.updateCandidates(submittedCommand: submittedCommand, executedCommand: submittedCommand)
+            return await self.updateCandidates(submittedCommand: submittedCommand, executedCommand: submittedCommand)
 
         case .clearComposition:
-            self.reset()
+            await self.reset()
             return self.makeResult(
                 action: .stateCleared,
                 submittedCommand: submittedCommand,
@@ -193,8 +193,8 @@ package struct AncoSession {
 
         case .save:
             self.composingText.stopComposition()
-            self.converter.stopComposition()
-            self.converter.commitUpdateLearningData()
+            await self.converter.stopComposition()
+            await self.converter.commitUpdateLearningData()
             let message = self.requestOptionsState.learningType.needUpdateMemory
                 ? "saved"
                 : "anything should not be saved because the learning type is not for update memory"
@@ -204,7 +204,7 @@ package struct AncoSession {
             let predictCount = max(1, min(requestedCount, 50))
             let predictMinLength = max(1, min(minLength, predictCount))
             let ipStart = Date()
-            let (predictedText, suffixCount) = self.converter.predictNextInputText(
+            let (predictedText, suffixCount) = await self.converter.predictNextInputText(
                 leftSideContext: self.leftSideContext,
                 composingText: self.composingText,
                 count: predictCount,
@@ -232,7 +232,7 @@ package struct AncoSession {
             self.composingText.insertAtCursorPosition(insertText, inputStyle: self.inputStyle)
             let executedCommand = AncoSessionRequest.input(insertText)
 
-            return self.updateCandidates(
+            return await self.updateCandidates(
                 submittedCommand: submittedCommand,
                 executedCommand: executedCommand,
                 predictiveInputTime: predictiveInputTime
@@ -254,14 +254,14 @@ package struct AncoSession {
                 return self.makeResult(action: .noAction, submittedCommand: submittedCommand, executedCommand: submittedCommand)
             }
             self.didExperienceSegmentEdition = !self.composingText.isAtEndIndex
-            return self.updateCandidates(submittedCommand: submittedCommand, executedCommand: submittedCommand)
+            return await self.updateCandidates(submittedCommand: submittedCommand, executedCommand: submittedCommand)
 
         case let .editSegment(count):
             guard !self.composingText.isEmpty else {
                 return self.makeResult(action: .noAction, submittedCommand: submittedCommand, executedCommand: submittedCommand)
             }
             self.editSegment(count: count)
-            return self.updateCandidates(submittedCommand: submittedCommand, executedCommand: submittedCommand)
+            return await self.updateCandidates(submittedCommand: submittedCommand, executedCommand: submittedCommand)
 
         case let .setConfig(key, value):
             try self.updateConfig(key: key, value: value)
@@ -285,7 +285,7 @@ package struct AncoSession {
             case .endOfText:
                 self.composingText.insertAtCursorPosition([.init(piece: .compositionSeparator, inputStyle: self.inputStyle)])
             }
-            return self.updateCandidates(submittedCommand: submittedCommand, executedCommand: submittedCommand)
+            return await self.updateCandidates(submittedCommand: submittedCommand, executedCommand: submittedCommand)
 
         case let .dumpHistory(filePath):
             let fileName = filePath ?? "history.txt"
@@ -303,12 +303,12 @@ package struct AncoSession {
                 throw SessionError.invalidCandidateIndex(index)
             }
             let candidate = self.lastCandidates[index]
-            self.converter.setCompletedData(candidate)
-            self.converter.updateLearningData(candidate)
+            await self.converter.setCompletedData(candidate)
+            await self.converter.updateLearningData(candidate)
             self.composingText.prefixComplete(composingCount: candidate.composingCount)
             if self.composingText.isEmpty {
                 self.composingText.stopComposition()
-                self.converter.stopComposition()
+                await self.converter.stopComposition()
             } else {
                 _ = self.composingText.moveCursorFromCursorPosition(
                     count: self.composingText.convertTarget.count - self.composingText.convertTargetCursorPosition
@@ -316,7 +316,7 @@ package struct AncoSession {
             }
             self.didExperienceSegmentEdition = false
             self.leftSideContext += candidate.text
-            return self.updateCandidates(
+            return await self.updateCandidates(
                 submittedCommand: submittedCommand,
                 executedCommand: submittedCommand,
                 message: "Submit \(candidate.text)"
@@ -325,16 +325,16 @@ package struct AncoSession {
         case let .input(rawInput):
             let input = Self.normalize(input: rawInput)
             self.composingText.insertAtCursorPosition(input, inputStyle: self.inputStyle)
-            return self.updateCandidates(
+            return await self.updateCandidates(
                 submittedCommand: submittedCommand,
                 executedCommand: .input(input)
             )
         }
     }
 
-    package mutating func reset() {
+    package mutating func reset() async {
         self.composingText.stopComposition()
-        self.converter.stopComposition()
+        await self.converter.stopComposition()
         self.lastCandidates = []
         self.lastMainCandidates = []
         self.lastPredictionCandidates = []
@@ -346,9 +346,9 @@ package struct AncoSession {
 
     package func experimentalRequestTypoCorrection(
         config: ExperimentalTypoCorrectionConfig = .init()
-    ) -> TypoCorrectionResult {
+    ) async -> TypoCorrectionResult {
         let start = Date()
-        let candidates = self.converter.experimentalRequestTypoCorrection(
+        let candidates = await self.converter.experimentalRequestTypoCorrection(
             leftSideContext: self.leftSideContext,
             composingText: self.composingText,
             options: self.requestOptions(leftSideContext: self.leftSideContext),
@@ -363,9 +363,9 @@ package struct AncoSession {
         executedCommand: AncoSessionRequest,
         message: String? = nil,
         predictiveInputTime: TimeInterval? = nil
-    ) -> ExecutionResult {
+    ) async -> ExecutionResult {
         let start = Date()
-        let result = self.converter.requestCandidates(
+        let result = await self.converter.requestCandidates(
             self.composingText.prefixToCursorPosition(),
             options: self.requestOptions(leftSideContext: self.leftSideContext)
         )

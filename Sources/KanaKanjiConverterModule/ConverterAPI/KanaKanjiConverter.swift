@@ -12,7 +12,7 @@ public import Foundation
 import SwiftUtils
 
 /// かな漢字変換の管理を受け持つクラス
-public final class KanaKanjiConverter {
+public actor KanaKanjiConverter {
     private let converter: Kana2Kanji
     private struct ConversionSessionState {
         var previousInputData: ComposingText?
@@ -31,7 +31,7 @@ public final class KanaKanjiConverter {
         self.converter = .init(dicdataStore: dicdataStore)
         self.dicdataStoreState = dicdataStore.prepareState()
     }
-    public convenience init(dictionaryURL: URL, preloadDictionary: Bool = false) {
+    public init(dictionaryURL: URL, preloadDictionary: Bool = false) {
         let dicdataStore = DicdataStore(dictionaryURL: dictionaryURL, preloadDictionary: preloadDictionary)
         self.init(dicdataStore: dicdataStore)
     }
@@ -70,7 +70,7 @@ public final class KanaKanjiConverter {
         self.sessions[self.activeSessionID] = state
     }
 
-    private func withScratchSession<T>(_ body: () -> T) -> T {
+    private func withScratchSession<T>(_ body: () async -> T) async -> T {
         let scratchID: SessionID = "scratch-\(UUID().uuidString)"
         self.sessions[scratchID] = self.currentSessionState
         let previousSessionID = self.activeSessionID
@@ -81,12 +81,12 @@ public final class KanaKanjiConverter {
             self.zenzaiPersonalization = savedPersonalization
             self.sessions[scratchID] = nil
         }
-        return body()
+        return await body()
     }
 
     /// リセットする関数
-    public func stopComposition() {
-        self.zenz?.endSession()
+    public func stopComposition() async {
+        await self.zenz?.endSession()
         self.zenzaiPersonalization = nil
         self.sessions = [Self.defaultSessionID: .init()]
         self.activeSessionID = Self.defaultSessionID
@@ -197,8 +197,8 @@ public final class KanaKanjiConverter {
         return uniqueStableCandidates + additionalCandidates
     }
 
-    package func getModel(modelURL: URL) -> Zenz? {
-        if let model = self.zenz, model.resourceURL == modelURL {
+    package func getModel(modelURL: URL) async -> Zenz? {
+        if let model = self.zenz, await model.resourceURL == modelURL {
             self.zenzStatus = "load \(modelURL.absoluteString)"
             return model
         } else {
@@ -227,7 +227,7 @@ public final class KanaKanjiConverter {
         options: ConvertRequestOptions,
         inputStyle: InputStyle = .direct,
         debugPossibleNexts: Bool = false
-    ) -> (predictedText: String, suffixCount: Int) {
+    ) async -> (predictedText: String, suffixCount: Int) {
         guard options.zenzaiMode.enabled else {
             self.invalidatePredictiveInputCache()
             print("zenz mode is disabled")
@@ -251,7 +251,7 @@ public final class KanaKanjiConverter {
         ) {
             return cachedPrediction
         }
-        guard let zenz = self.getModel(modelURL: options.zenzaiMode.weightURL) else {
+        guard let zenz = await self.getModel(modelURL: options.zenzaiMode.weightURL) else {
             self.invalidatePredictiveInputCache()
             print("zenz-v3 model unavailable")
             return ("", 0)
@@ -260,7 +260,7 @@ public final class KanaKanjiConverter {
         if debugPossibleNexts {
             print("possibleNexts:", source.possibleNexts)
         }
-        let predictedText = zenz.predictNextInputText(
+        let predictedText = await zenz.predictNextInputText(
             leftSideContext: leftSideContext,
             composingText: source.baseConvertTarget,
             count: count,
@@ -292,7 +292,7 @@ public final class KanaKanjiConverter {
         options: ConvertRequestOptions,
         inputStyle: InputStyle,
         config: ExperimentalTypoCorrectionConfig = .init()
-    ) -> [ZenzaiTypoCandidate] {
+    ) async -> [ZenzaiTypoCandidate] {
         debug("[Warning] KanaKanjiConverter.experimentalRequestTypoCorrection is experimental and may change without notice.")
         switch config.languageModel {
         case .zenz:
@@ -300,11 +300,11 @@ public final class KanaKanjiConverter {
                 debug("zenz mode is disabled")
                 return []
             }
-            guard let zenz = self.getModel(modelURL: options.zenzaiMode.weightURL) else {
+            guard let zenz = await self.getModel(modelURL: options.zenzaiMode.weightURL) else {
                 debug("zenz model unavailable")
                 return []
             }
-            return zenz.generateTypoCandidates(
+            return await zenz.generateTypoCandidates(
                 leftSideContext: leftSideContext,
                 composingText: composingText,
                 inputStyle: inputStyle,
@@ -330,15 +330,15 @@ public final class KanaKanjiConverter {
     }
 
     /// 入力する言語が分かったらこの関数をなるべく早い段階で呼ぶことで、SpellCheckerの初期化が行われ、変換がスムーズになる
-    public func setKeyboardLanguage(_ language: KeyboardLanguage) {
+    public func setKeyboardLanguage(_ language: KeyboardLanguage) async {
         self.dicdataStoreState.updateKeyboardLanguage(language)
         if !checkerInitialized[language, default: false] {
             switch language {
             case .en_US:
-                _ = self.checker.completions(forPartialWordRange: NSRange(location: 0, length: 1), in: "a", language: "en-US")
+                _ = await self.checker.completions(forPartialWordRange: NSRange(location: 0, length: 1), in: "a", language: "en-US")
                 self.checkerInitialized[language] = true
             case .el_GR:
-                _ = self.checker.completions(forPartialWordRange: NSRange(location: 0, length: 1), in: "a", language: "el-GR")
+                _ = await self.checker.completions(forPartialWordRange: NSRange(location: 0, length: 1), in: "a", language: "el-GR")
                 self.checkerInitialized[language] = true
             case .none, .ja_JP:
                 checkerInitialized[language] = true
@@ -411,10 +411,12 @@ public final class KanaKanjiConverter {
     ///   - string: 入力されたString
     /// - Returns:
     ///   `賢い変換候補
-    private func getSpecialCandidate(_ inputData: ComposingText, options: ConvertRequestOptions) -> [Candidate] {
-        options.specialCandidateProviders.flatMap { provider in
-            provider.provideCandidates(converter: self, inputData: inputData, options: options)
+    private func getSpecialCandidate(_ inputData: ComposingText, options: ConvertRequestOptions) async -> [Candidate] {
+        var candidates: [Candidate] = []
+        for provider in options.specialCandidateProviders {
+            candidates.append(contentsOf: await provider.provideCandidates(converter: self, inputData: inputData, options: options))
         }
+        return candidates
     }
 
     /// 変換候補の重複を除去する関数。
@@ -465,7 +467,7 @@ public final class KanaKanjiConverter {
     ///   - language: 言語コード。現在は`en-US`と`el(ギリシャ語)`のみ対応している。
     /// - Returns:
     ///   予測変換候補
-    private func getForeignPredictionCandidate(inputData: ComposingText, language: String, penalty: PValue = -5) -> [Candidate] {
+    private func getForeignPredictionCandidate(inputData: ComposingText, language: String, penalty: PValue = -5) async -> [Candidate] {
         switch language {
         case "en-US":
             var result: [Candidate] = []
@@ -476,7 +478,7 @@ public final class KanaKanjiConverter {
             if !ruby.onlyRomanAlphabet {
                 return result
             }
-            if let completions = checker.completions(forPartialWordRange: range, in: ruby, language: language) {
+            if let completions = await checker.completions(forPartialWordRange: range, in: ruby, language: language) {
                 if !completions.isEmpty {
                     let data = [DicdataElement(ruby: ruby, cid: CIDData.固有名詞.cid, mid: MIDData.一般.mid, value: penalty)]
                     let candidate: Candidate = Candidate(
@@ -510,7 +512,7 @@ public final class KanaKanjiConverter {
                 if case let .character(c) = $0.piece { c } else { nil }
             })
             let range = NSRange(location: 0, length: ruby.utf16.count)
-            if let completions = checker.completions(forPartialWordRange: range, in: ruby, language: language) {
+            if let completions = await checker.completions(forPartialWordRange: range, in: ruby, language: language) {
                 if !completions.isEmpty {
                     let data = [DicdataElement(ruby: ruby, cid: CIDData.固有名詞.cid, mid: MIDData.一般.mid, value: penalty)]
                     let candidate: Candidate = Candidate(
@@ -548,7 +550,7 @@ public final class KanaKanjiConverter {
     ///   - sums: 変換対象のデータ。
     /// - Returns:
     ///   予測変換候補
-    private func getPredictionCandidate(_ bestCandidateDataForPrediction: consuming CandidateData, composingText: ComposingText, options: ConvertRequestOptions) -> [Candidate] {
+    private func getPredictionCandidate(_ bestCandidateDataForPrediction: consuming CandidateData, composingText: ComposingText, options: ConvertRequestOptions) async -> [Candidate] {
         // 予測変換は次の方針で行う。
         // prepart: 前半文節 lastPart: 最終文節とする。
         // まず、lastPartがnilであるところから始める
@@ -623,7 +625,7 @@ public final class KanaKanjiConverter {
         }
 
         let inputStyle = composingText.input.last?.inputStyle ?? .direct
-        let (predictedText, suffixCount) = self.predictNextInputText(
+        let (predictedText, suffixCount) = await self.predictNextInputText(
             leftSideContext: leftSideContext,
             composingText: composingText,
             count: 10,
@@ -647,8 +649,8 @@ public final class KanaKanjiConverter {
         fallbackOptions.requireJapanesePrediction = .disabled
         fallbackOptions.requireEnglishPrediction = .disabled
         // 別セッションで変換候補を生成
-        let predictedResult = self.withScratchSession {
-            self.requestCandidates(predictedComposingText, options: fallbackOptions)
+        let predictedResult = await self.withScratchSession {
+            await self.requestCandidates(predictedComposingText, options: fallbackOptions)
         }
         guard let firstCandidate = predictedResult.mainResults.first else {
             return []
@@ -661,12 +663,12 @@ public final class KanaKanjiConverter {
     ///   - inputData: 変換対象のInputData。
     /// - Returns:
     ///   付加的な変換候補
-    private func getTopLevelAdditionalCandidate(_ inputData: ComposingText, options: ConvertRequestOptions) -> [Candidate] {
+    private func getTopLevelAdditionalCandidate(_ inputData: ComposingText, options: ConvertRequestOptions) async -> [Candidate] {
         var candidates: [Candidate] = []
         if options.englishCandidateInRoman2KanaInput, inputData.input.allSatisfy({
             if case let .character(c) = $0.piece { c.isASCII } else { false }
         }) {
-            candidates.append(contentsOf: self.getForeignPredictionCandidate(inputData: inputData, language: "en-US", penalty: -10))
+            candidates.append(contentsOf: await self.getForeignPredictionCandidate(inputData: inputData, language: "en-US", penalty: -10))
         }
         return candidates
     }
@@ -775,7 +777,7 @@ public final class KanaKanjiConverter {
     ///   重複のない変換候補。
     /// - Note:
     ///   現在の実装は非常に複雑な方法で候補の順序を決定している。
-    private func processResult(inputData: ComposingText, result: (result: LatticeNode, lattice: Lattice), options: ConvertRequestOptions) -> ConversionResult {
+    private func processResult(inputData: ComposingText, result: (result: LatticeNode, lattice: Lattice), options: ConvertRequestOptions) async -> ConversionResult {
         self.updateCurrentSessionState {
             $0.previousInputData = inputData
             $0.lattice = result.lattice
@@ -856,7 +858,7 @@ public final class KanaKanjiConverter {
             var stablePredictionCandidates: [Candidate] = []
             if options.requireJapanesePrediction.isEnabled, let bestCandidateDataForPrediction {
                 let candidates = self.getUniqueCandidate(
-                    self.getPredictionCandidate(bestCandidateDataForPrediction, composingText: inputData, options: options)
+                    await self.getPredictionCandidate(bestCandidateDataForPrediction, composingText: inputData, options: options)
                 ).min(count: 3, sortedBy: {$0.value > $1.value})
                 stablePredictionCandidates = self.stablePredictionCandidates(
                     composingText: inputData,
@@ -880,9 +882,9 @@ public final class KanaKanjiConverter {
             var foreignCandidates: [Candidate] = []
             if options.requireEnglishPrediction.isEnabled {
                 var englishCandidates: [Candidate] = []
-                englishCandidates.append(contentsOf: self.getForeignPredictionCandidate(inputData: inputData, language: "en-US"))
+                englishCandidates.append(contentsOf: await self.getForeignPredictionCandidate(inputData: inputData, language: "en-US"))
                 if options.keyboardLanguage == .el_GR {
-                    englishCandidates.append(contentsOf: self.getForeignPredictionCandidate(inputData: inputData, language: "el"))
+                    englishCandidates.append(contentsOf: await self.getForeignPredictionCandidate(inputData: inputData, language: "el"))
                 }
                 englishPredictionResults = englishCandidates
                 if options.requireEnglishPrediction.shouldMix {
@@ -890,7 +892,7 @@ public final class KanaKanjiConverter {
                 }
             }
             // その他のトップレベル変換（先頭に表示されうる変換候補）
-            let topLevelAdditionalCandidates = self.getTopLevelAdditionalCandidate(inputData, options: options)
+            let topLevelAdditionalCandidates = await self.getTopLevelAdditionalCandidate(inputData, options: options)
             // best8、foreign_candidates、zeroHintPrediction_candidates、toplevel_additional_candidate、user_shortcuts を混ぜて上位5件を取得する
             let mixedCandidates = getUniqueCandidate(
                 bestFiveSentenceCandidates
@@ -968,7 +970,7 @@ public final class KanaKanjiConverter {
                 seenCandidate.insert(c.text)
             }
             // 賢く変換するパターン（任意件数）
-            let wiseCandidates = self.getUniqueCandidate(self.getSpecialCandidate(inputData, options: options), seenCandidates: seenCandidate)
+            let wiseCandidates = self.getUniqueCandidate(await self.getSpecialCandidate(inputData, options: options), seenCandidates: seenCandidate)
             // 途中でwise_candidatesを挟む
             candidates.insert(contentsOf: consume wiseCandidates, at: min(5, candidates.endIndex))
             wordCandidates = consume candidates
@@ -1019,20 +1021,21 @@ public final class KanaKanjiConverter {
     ///   - N_best: 計算途中で保存する候補数。実際に得られる候補数とは異なる。
     /// - Returns:
     ///   結果のラティスノードと、計算済みノードの全体
-    private func convertToLattice(_ inputData: ComposingText, N_best: Int, zenzaiMode: ConvertRequestOptions.ZenzaiMode, needTypoCorrection: Bool) -> (result: LatticeNode, lattice: Lattice)? {
+    private func convertToLattice(_ inputData: ComposingText, N_best: Int, zenzaiMode: ConvertRequestOptions.ZenzaiMode, needTypoCorrection: Bool) async -> (result: LatticeNode, lattice: Lattice)? {
         if inputData.convertTarget.isEmpty {
             return nil
         }
 
         // FIXME: enable cache based zenzai
-        if zenzaiMode.enabled, let model = self.getModel(modelURL: zenzaiMode.weightURL) {
-            let (result, nodes, cache) = self.converter.all_zenzai(
+        if zenzaiMode.enabled, let model = await self.getModel(modelURL: zenzaiMode.weightURL) {
+            let personalizationMode = self.getZenzaiPersonalization(mode: zenzaiMode.personalizationMode)
+            let (result, nodes, cache) = await self.converter.all_zenzai(
                 inputData,
                 zenz: model,
                 zenzaiCache: self.currentSessionState.zenzaiCache,
                 inferenceLimit: zenzaiMode.inferenceLimit,
                 requestRichCandidates: zenzaiMode.requestRichCandidates,
-                personalizationMode: self.getZenzaiPersonalization(mode: zenzaiMode.personalizationMode),
+                personalizationMode: personalizationMode,
                 versionDependentConfig: zenzaiMode.versionDependentMode,
                 dicdataStoreState: self.dicdataStoreState
             )
@@ -1120,7 +1123,7 @@ public final class KanaKanjiConverter {
     ///   - inputData: 変換対象のInputData。
     ///   - options: リクエストにかかるパラメータ。
     /// - Returns: `ConversionResult`
-    public func requestCandidates(_ inputData: ComposingText, options: ConvertRequestOptions) -> ConversionResult {
+    public func requestCandidates(_ inputData: ComposingText, options: ConvertRequestOptions) async -> ConversionResult {
         debug("requestCandidates 入力は", inputData)
         // 変換対象が無の場合
         if inputData.convertTarget.isEmpty {
@@ -1132,11 +1135,11 @@ public final class KanaKanjiConverter {
         self.dicdataStoreState.updateIfRequired(options: options)
         let needTypoCorrection = self.isClassicTypoCorrectionEnabled(options)
 
-        guard let result = self.convertToLattice(inputData, N_best: options.N_best, zenzaiMode: options.zenzaiMode, needTypoCorrection: needTypoCorrection) else {
+        guard let result = await self.convertToLattice(inputData, N_best: options.N_best, zenzaiMode: options.zenzaiMode, needTypoCorrection: needTypoCorrection) else {
             return ConversionResult(mainResults: [], predictionResults: [], englishPredictionResults: [], firstClauseResults: [])
         }
 
-        return self.processResult(inputData: inputData, result: result, options: options)
+        return await self.processResult(inputData: inputData, result: result, options: options)
     }
 
     private func isClassicTypoCorrectionEnabled(_ options: ConvertRequestOptions) -> Bool {

@@ -20,14 +20,14 @@ final class AncoSessionTests: XCTestCase {
             specialCandidateProviders: KanaKanjiConverter.defaultSpecialCandidateProviders,
             metadata: .init(versionString: "anco test")
         )
-    ) -> AncoSession {
-        AncoSession(defaultDictionaryRequestOptions: requestOptions)
+    ) async -> AncoSession {
+        await AncoSession(defaultDictionaryRequestOptions: requestOptions)
     }
 
-    func testExecuteDirectInputUpdatesComposition() throws {
-        var session = self.makeSession()
+    func testExecuteDirectInputUpdatesComposition() async throws {
+        var session = await self.makeSession()
 
-        let result = try session.execute(.input("あずーきー"))
+        let result = try await session.execute(.input("あずーきー"))
 
         XCTAssertEqual(result.action, .candidatesUpdated)
         XCTAssertEqual(result.executedCommand, .input("あずーきー"))
@@ -37,11 +37,11 @@ final class AncoSessionTests: XCTestCase {
         XCTAssertEqual(session.page, 0)
     }
 
-    func testContextAndClearCommandsUpdateState() throws {
-        var session = self.makeSession()
+    func testContextAndClearCommandsUpdateState() async throws {
+        var session = await self.makeSession()
 
-        _ = try session.execute(.setContext("左"))
-        let result = try session.execute(.clearComposition)
+        _ = try await session.execute(.setContext("左"))
+        let result = try await session.execute(.clearComposition)
 
         XCTAssertEqual(session.leftSideContext, "")
         XCTAssertTrue(session.composingText.isEmpty)
@@ -49,14 +49,14 @@ final class AncoSessionTests: XCTestCase {
         XCTAssertEqual(result.message, "composition is stopped")
     }
 
-    func testDumpCommandWritesHistory() throws {
-        var session = self.makeSession()
+    func testDumpCommandWritesHistory() async throws {
+        var session = await self.makeSession()
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let historyURL = directory.appendingPathComponent("history.txt")
 
-        _ = try session.execute(.setConfig(key: "displayTopN", value: "3"))
-        _ = try session.execute(.setConfig(key: "inputStyle", value: "roman2kana"))
+        _ = try await session.execute(.setConfig(key: "displayTopN", value: "3"))
+        _ = try await session.execute(.setConfig(key: "inputStyle", value: "roman2kana"))
         session.recordHistory(.typoCorrection(.init(
             rawCommand: ":tc 3 beam=8",
             nBest: 3,
@@ -67,8 +67,8 @@ final class AncoSessionTests: XCTestCase {
             beta: 3.0,
             gamma: 2.0
         )))
-        _ = try session.execute(.input("あずーきー"))
-        _ = try session.execute(.dumpHistory(historyURL.path))
+        _ = try await session.execute(.input("あずーきー"))
+        _ = try await session.execute(.dumpHistory(historyURL.path))
 
         let content = try String(contentsOf: historyURL, encoding: .utf8)
         XCTAssertEqual(
@@ -94,7 +94,7 @@ final class AncoSessionTests: XCTestCase {
         )
     }
 
-    func testInputAndOutputLearningCreatesTemporaryMemoryDirectory() throws {
+    func testInputAndOutputLearningCreatesTemporaryMemoryDirectory() async throws {
         let requestOptions = ConvertRequestOptions(
             N_best: 10,
             requireJapanesePrediction: .autoMix,
@@ -111,18 +111,18 @@ final class AncoSessionTests: XCTestCase {
             metadata: .init(versionString: "anco test")
         )
         try FileManager.default.createDirectory(at: requestOptions.memoryDirectoryURL, withIntermediateDirectories: true)
-        let session = self.makeSession(requestOptions: requestOptions)
+        let session = await self.makeSession(requestOptions: requestOptions)
 
         XCTAssertTrue(FileManager.default.fileExists(atPath: session.memoryDirectoryURL.path))
     }
 
-    func testCfgUpdatesSessionState() throws {
-        var session = self.makeSession()
+    func testCfgUpdatesSessionState() async throws {
+        var session = await self.makeSession()
 
-        let topNResult = try session.execute(.setConfig(key: "displayTopN", value: "3"))
-        let styleResult = try session.execute(.setConfig(key: "inputStyle", value: "roman2kana"))
-        let wholeResult = try session.execute(.setConfig(key: "onlyWholeConversion", value: "true"))
-        let predictResult = try session.execute(.setConfig(key: "predictionMode", value: "manualmix"))
+        let topNResult = try await session.execute(.setConfig(key: "displayTopN", value: "3"))
+        let styleResult = try await session.execute(.setConfig(key: "inputStyle", value: "roman2kana"))
+        let wholeResult = try await session.execute(.setConfig(key: "onlyWholeConversion", value: "true"))
+        let predictResult = try await session.execute(.setConfig(key: "predictionMode", value: "manualmix"))
 
         XCTAssertEqual(topNResult.action, .configUpdated)
         XCTAssertEqual(topNResult.message, "displayTopN=3")
@@ -134,7 +134,7 @@ final class AncoSessionTests: XCTestCase {
         XCTAssertEqual(predictResult.message, "predictionMode=manualmix")
     }
 
-    func testCfgUpdatesZenzaiConfig() throws {
+    func testCfgUpdatesZenzaiConfig() async throws {
         let requestOptions = ConvertRequestOptions(
             N_best: 10,
             requireJapanesePrediction: .autoMix,
@@ -157,19 +157,19 @@ final class AncoSessionTests: XCTestCase {
             ),
             metadata: .init(versionString: "anco test")
         )
-        var session = self.makeSession(requestOptions: requestOptions)
+        var session = await self.makeSession(requestOptions: requestOptions)
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let historyURL = directory.appendingPathComponent("history.txt")
 
-        _ = try session.execute(.setConfig(key: "zenzai.inferenceLimit", value: "24"))
-        _ = try session.execute(.setConfig(key: "zenzai.requestRichCandidates", value: "true"))
-        _ = try session.execute(.setConfig(key: "zenzai.experimentalPredictiveInput", value: "true"))
-        _ = try session.execute(.setConfig(key: "zenzai.profile", value: "developer"))
-        _ = try session.execute(.setConfig(key: "zenzai.topic", value: "swift"))
-        _ = try session.execute(.setConfig(key: "zenzai.rightContext", value: "を取る"))
-        _ = try session.execute(.setConfig(key: "zenzai.alignmentSeparator", value: "true"))
-        _ = try session.execute(.dumpHistory(historyURL.path))
+        _ = try await session.execute(.setConfig(key: "zenzai.inferenceLimit", value: "24"))
+        _ = try await session.execute(.setConfig(key: "zenzai.requestRichCandidates", value: "true"))
+        _ = try await session.execute(.setConfig(key: "zenzai.experimentalPredictiveInput", value: "true"))
+        _ = try await session.execute(.setConfig(key: "zenzai.profile", value: "developer"))
+        _ = try await session.execute(.setConfig(key: "zenzai.topic", value: "swift"))
+        _ = try await session.execute(.setConfig(key: "zenzai.rightContext", value: "を取る"))
+        _ = try await session.execute(.setConfig(key: "zenzai.alignmentSeparator", value: "true"))
+        _ = try await session.execute(.dumpHistory(historyURL.path))
         let content = try String(contentsOf: historyURL, encoding: .utf8)
 
         XCTAssertTrue(content.contains(":cfg zenzai.inferenceLimit=24"))
@@ -181,15 +181,15 @@ final class AncoSessionTests: XCTestCase {
         XCTAssertTrue(content.contains(":cfg zenzai.alignmentSeparator=true"))
     }
 
-    func testSwitchingToPredictionViewImmediatelyReturnsPredictionCandidates() throws {
-        var session = self.makeSession()
-        _ = try session.execute(.setConfig(key: "inputStyle", value: "roman2kana"))
+    func testSwitchingToPredictionViewImmediatelyReturnsPredictionCandidates() async throws {
+        var session = await self.makeSession()
+        _ = try await session.execute(.setConfig(key: "inputStyle", value: "roman2kana"))
 
         for input in ["a", "i", "u", "e", "o", "k", "a", "k", "i", "k", "u", "k", "e"] {
-            _ = try session.execute(.input(input))
+            _ = try await session.execute(.input(input))
         }
 
-        let result = try session.execute(.setConfig(key: "view", value: "prediction"))
+        let result = try await session.execute(.setConfig(key: "view", value: "prediction"))
 
         XCTAssertEqual(result.action, .configUpdated)
         XCTAssertTrue(
@@ -198,11 +198,11 @@ final class AncoSessionTests: XCTestCase {
         )
     }
 
-    func testMoveCursorAllowsPartialCommitOfPrefixCandidate() throws {
-        var session = self.makeSession()
+    func testMoveCursorAllowsPartialCommitOfPrefixCandidate() async throws {
+        var session = await self.makeSession()
 
-        _ = try session.execute(.input("あずーきーは"))
-        let moveResult = try session.execute(.moveCursor(-1))
+        _ = try await session.execute(.input("あずーきーは"))
+        let moveResult = try await session.execute(.moveCursor(-1))
 
         XCTAssertEqual(moveResult.composingText.convertTarget, "あずーきーは")
         XCTAssertEqual(moveResult.composingText.convertTargetCursorPosition, "あずーきー".count)
@@ -211,7 +211,7 @@ final class AncoSessionTests: XCTestCase {
             return XCTFail("expected azooKey candidate in \(moveResult.candidates.map(\.text))")
         }
 
-        let commitResult = try session.execute(.selectCandidate(azooKeyIndex))
+        let commitResult = try await session.execute(.selectCandidate(azooKeyIndex))
 
         XCTAssertEqual(commitResult.message, "Submit azooKey")
         XCTAssertEqual(session.leftSideContext, "azooKey")
@@ -219,11 +219,11 @@ final class AncoSessionTests: XCTestCase {
         XCTAssertEqual(session.composingText.convertTargetCursorPosition, 1)
     }
 
-    func testMoveCursorCanSplitLeftContextIntoRightContext() throws {
-        var session = self.makeSession()
+    func testMoveCursorCanSplitLeftContextIntoRightContext() async throws {
+        var session = await self.makeSession()
 
-        _ = try session.execute(.setContext("ご飯を食べるはし"))
-        let result = try session.execute(.moveCursor(-2))
+        _ = try await session.execute(.setContext("ご飯を食べるはし"))
+        let result = try await session.execute(.moveCursor(-2))
 
         XCTAssertEqual(result.leftSideContext, "ご飯を食べる")
         XCTAssertEqual(result.rightSideContext, "はし")
@@ -231,11 +231,11 @@ final class AncoSessionTests: XCTestCase {
         XCTAssertEqual(result.composingText.convertTargetCursorPosition, 0)
     }
 
-    func testEditSegmentMovesCursorAndRefreshesPrefixCandidates() throws {
-        var session = self.makeSession()
+    func testEditSegmentMovesCursorAndRefreshesPrefixCandidates() async throws {
+        var session = await self.makeSession()
 
-        _ = try session.execute(.input("あずーきーは"))
-        let result = try session.execute(.editSegment(-1))
+        _ = try await session.execute(.input("あずーきーは"))
+        let result = try await session.execute(.editSegment(-1))
 
         XCTAssertEqual(result.composingText.convertTargetCursorPosition, "あずーきー".count)
         XCTAssertTrue(
