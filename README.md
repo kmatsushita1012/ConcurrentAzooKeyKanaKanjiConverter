@@ -1,4 +1,9 @@
-# AzooKeyKanaKanjiConverter
+# ConcurrentAzooKeyKanaKanjiConverter
+
+[AzooKeyKanaKanjiConverter](https://github.com/azooKey/AzooKeyKanaKanjiConverter)をforkし、MainActor依存を極力取り除き、nonisolatedで動くように改良しています
+本家のコントリビュータの方々へ、Swiftの日本語IME環境への多大なる貢献に感謝申し上げます。
+
+以下よりは本家のREADME.mdです
 
 AzooKeyKanaKanjiConverterは[azooKey](https://github.com/ensan-hcl/azooKey)のために開発したかな漢字変換エンジンです。数行のコードでかな漢字変換をiOS / macOS / visionOSのアプリケーションに組み込むことができます。
 
