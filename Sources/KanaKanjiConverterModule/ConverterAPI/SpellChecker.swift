@@ -23,7 +23,7 @@ actor SpellChecker {
     private let checker = NSSpellChecker.shared
     #endif
 
-    func completions(forPartialWordRange range: NSRange, in string: String, language: String) -> [String]? {
+    func completions(forPartialWordRange range: NSRange, in string: String, language: String) async -> [String]? {
         #if os(iOS) || os(tvOS) || os(visionOS)
         return await MainActor.run {
             Self.checker.completions(forPartialWordRange: range, in: string, language: language)
